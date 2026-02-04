@@ -1,0 +1,14 @@
+[
+  {
+    "number": 42,
+    "title": "Fix auth flow",
+    "url": "https://github.com/acme/app/pull/42",
+    "createdAt": "2026-02-01T12:00:00Z",
+    "updatedAt": "2026-02-03T12:00:00Z",
+    "isDraft": false,
+    "author": { "login": "octo" },
+    "labels": [{ "name": "bug" }],
+    "repository": { "nameWithOwner": "acme/app" },
+    "headRefOid": "abcd1234"
+  }
+]

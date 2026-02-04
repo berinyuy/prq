@@ -1,0 +1,19 @@
+{
+  "summary": "Updates auth handling.",
+  "risk_level": "low",
+  "decision": "comment",
+  "key_changes": ["Refines auth login"],
+  "issues": [
+    {
+      "severity": "minor",
+      "category": "readability",
+      "file": "internal/auth/auth.go",
+      "start_line": 1,
+      "end_line": 1,
+      "message": "Consider adding a comment explaining why auth is unchanged."
+    }
+  ],
+  "questions": ["Should auth errors be wrapped with context?"],
+  "praise": ["Clear intent in the PR description."],
+  "draft_review_body": "Thanks for the update."
+}

@@ -1,0 +1,9 @@
+diff --git a/internal/auth/auth.go b/internal/auth/auth.go
+index 1234567..89abcde 100644
+--- a/internal/auth/auth.go
++++ b/internal/auth/auth.go
+@@ -1,4 +1,4 @@
+-func Login(user string) error {
++func Login(user string) error {
+ 	return nil
+ }

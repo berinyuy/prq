@@ -1,0 +1,14 @@
+{
+  "number": 42,
+  "title": "Fix auth flow",
+  "body": "This changes auth handling.",
+  "url": "https://github.com/acme/app/pull/42",
+  "author": { "login": "octo" },
+  "labels": [{ "name": "bug" }],
+  "baseRefOid": "base1234",
+  "headRefOid": "head5678",
+  "files": [
+    { "path": "internal/auth/auth.go", "additions": 10, "deletions": 2 }
+  ],
+  "repository": { "nameWithOwner": "acme/app" }
+}
