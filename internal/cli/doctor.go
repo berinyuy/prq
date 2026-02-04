@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"time"
 
 	"github.com/brianndofor/prq/internal/prompt"
 	"github.com/spf13/cobra"
@@ -18,7 +19,8 @@ func NewDoctorCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			ctx := context.Background()
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
 			fmt.Fprintln(cmd.OutOrStdout(), "prq doctor")
 			if err := app.GH.CheckInstalled(); err != nil {
 				return err
@@ -36,6 +38,7 @@ func NewDoctorCmd() *cobra.Command {
 
 			schema := prompt.DefaultSchemaPath()
 			if err := app.Provider.HealthCheck(ctx, schema); err != nil {
+				fmt.Fprintf(cmd.OutOrStderr(), "- provider schema: failed\n%v\n", err)
 				return err
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), "- provider schema: ok")

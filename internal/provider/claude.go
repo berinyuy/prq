@@ -55,22 +55,30 @@ func (c *ClaudeRunner) RunReview(ctx context.Context, prompt string, schemaPath 
 func (c *ClaudeRunner) HealthCheck(ctx context.Context, schemaPath string) error {
 	minimal := `{"summary":"ok","risk_level":"low","decision":"comment","key_changes":[],"issues":[],"questions":[],"praise":[],"draft_review_body":""}`
 	args := append([]string{}, c.args...)
-	args = append(args, "-p", "Return JSON matching schema.", "--output-format", "json", "--json-schema", schemaPath)
+	args = append(args, "--print", "Return JSON matching schema.", "--output-format", "json", "--json-schema", schemaPath)
 	cmd := exec.CommandContext(ctx, c.command, args...)
-	cmd.Stdin = bytes.NewBufferString("Return JSON only.")
+	// Don't set Stdin - --print mode is non-interactive
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("provider health check failed: %w\n%s", err, stderr.String())
+		// Check if it's a context timeout/cancellation
+		if ctx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("provider health check timed out after 10 seconds\nCommand: %s %v\nStdout: %s\nStderr: %s", c.command, args, stdout.String(), stderr.String())
+		}
+		if ctx.Err() == context.Canceled {
+			return fmt.Errorf("provider health check was cancelled\nCommand: %s %v\nStdout: %s\nStderr: %s", c.command, args, stdout.String(), stderr.String())
+		}
+		// Regular error - include stderr and stdout
+		return fmt.Errorf("provider health check failed: %w\nCommand: %s %v\nStdout: %s\nStderr: %s", err, c.command, args, stdout.String(), stderr.String())
 	}
 	if len(stdout.Bytes()) == 0 {
-		return fmt.Errorf("provider health check failed: empty output")
+		return fmt.Errorf("provider health check failed: empty output\nCommand: %s %v\nStderr: %s", c.command, args, stderr.String())
 	}
 	if err := validateJSON(schemaPath, []byte(stdout.String())); err != nil {
 		_ = minimal
-		return err
+		return fmt.Errorf("provider output failed schema validation: %w\nOutput: %s\nStderr: %s", err, stdout.String(), stderr.String())
 	}
 	return nil
 }
