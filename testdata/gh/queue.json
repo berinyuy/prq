@@ -8,7 +8,6 @@
     "isDraft": false,
     "author": { "login": "octo" },
     "labels": [{ "name": "bug" }],
-    "repository": { "nameWithOwner": "acme/app" },
-    "headRefOid": "abcd1234"
+    "repository": { "nameWithOwner": "acme/app" }
   }
 ]

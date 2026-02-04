@@ -132,8 +132,12 @@ func writeReview(cmd *cobra.Command, plan provider.ReviewPlan, markdown bool) {
 	line(fmt.Sprintf("Decision: %s", plan.Decision))
 
 	header("Key Changes")
-	for _, change := range plan.KeyChanges {
-		line("- " + change)
+	if len(plan.KeyChanges) == 0 {
+		line("No key changes listed.")
+	} else {
+		for _, change := range plan.KeyChanges {
+			line("- " + change)
+		}
 	}
 
 	header("Issues")
@@ -145,33 +149,49 @@ func writeReview(cmd *cobra.Command, plan provider.ReviewPlan, markdown bool) {
 		}
 		issuesByFile[issue.File] = append(issuesByFile[issue.File], issue)
 	}
-	for _, file := range order {
-		line(file)
-		for _, issue := range issuesByFile[file] {
-			line(fmt.Sprintf("  - [%s/%s] %s (%d-%d)", issue.Severity, issue.Category, issue.Message, issue.StartLine, issue.EndLine))
-			if issue.SuggestionPatch != "" {
-				line("    Suggested patch:")
-				if markdown {
-					line("```diff")
-					line(issue.SuggestionPatch)
-					line("```")
-				} else {
-					line(issue.SuggestionPatch)
+	if len(order) == 0 {
+		line("No issues found.")
+	} else {
+		for _, file := range order {
+			line(file)
+			for _, issue := range issuesByFile[file] {
+				line(fmt.Sprintf("  - [%s/%s] %s (%d-%d)", issue.Severity, issue.Category, issue.Message, issue.StartLine, issue.EndLine))
+				if issue.SuggestionPatch != "" {
+					line("    Suggested patch:")
+					if markdown {
+						line("```diff")
+						line(issue.SuggestionPatch)
+						line("```")
+					} else {
+						line(issue.SuggestionPatch)
+					}
 				}
 			}
 		}
 	}
 
 	header("Questions")
-	for _, q := range plan.Questions {
-		line("- " + q)
+	if len(plan.Questions) == 0 {
+		line("No questions.")
+	} else {
+		for _, q := range plan.Questions {
+			line("- " + q)
+		}
 	}
 
 	header("Praise")
-	for _, p := range plan.Praise {
-		line("- " + p)
+	if len(plan.Praise) == 0 {
+		line("No praise.")
+	} else {
+		for _, p := range plan.Praise {
+			line("- " + p)
+		}
 	}
 
 	header("Draft Review Body")
-	line(plan.DraftReviewBody)
+	if strings.TrimSpace(plan.DraftReviewBody) == "" {
+		line("No draft review body.")
+	} else {
+		line(plan.DraftReviewBody)
+	}
 }

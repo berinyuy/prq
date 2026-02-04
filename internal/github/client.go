@@ -44,7 +44,6 @@ type SearchPRItem struct {
 	Author    UserRef `json:"author"`
 	Labels    []Label `json:"labels"`
 	Repo      RepoRef `json:"repository"`
-	HeadSHA   string  `json:"headRefOid"`
 }
 
 type RepoRef struct {
@@ -60,7 +59,7 @@ type Label struct {
 }
 
 func (c *Client) SearchPRs(ctx context.Context, query string, limit int, sort string, order string) ([]SearchPRItem, error) {
-	args := []string{"search", "prs", "--review-requested=@me", "--state", "open", "--limit", strconv.Itoa(limit), "--sort", sort, "--order", order, "--json", "number,title,url,repository,author,createdAt,updatedAt,isDraft,labels,headRefOid"}
+	args := []string{"search", "prs", "--review-requested=@me", "--state", "open", "--limit", strconv.Itoa(limit), "--sort", sort, "--order", order, "--json", "number,title,url,repository,author,createdAt,updatedAt,isDraft,labels"}
 	if strings.TrimSpace(query) != "" {
 		args = append(args, query)
 	}

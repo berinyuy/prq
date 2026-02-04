@@ -164,7 +164,6 @@ func buildQueueItems(items []github.SearchPRItem) []QueueItem {
 			AgeDays:     int(now.Sub(created).Hours() / 24),
 			UpdatedDays: int(now.Sub(updated).Hours() / 24),
 			Checks:      "unknown",
-			HeadSHA:     item.HeadSHA,
 		})
 	}
 	return queue
@@ -190,11 +189,25 @@ func parseTime(value string) time.Time {
 
 func applyChecks(ctx context.Context, gh *github.Client, queue []QueueItem, filter string) ([]QueueItem, error) {
 	for i, item := range queue {
-		if item.HeadSHA == "" || item.Repo == "" {
+		if item.Repo == "" || item.Number == 0 {
 			queue[i].Checks = "unknown"
 			continue
 		}
-		resp, err := gh.CheckRuns(ctx, item.Repo, item.HeadSHA)
+		headSHA := item.HeadSHA
+		if headSHA == "" {
+			ref := fmt.Sprintf("%s#%d", item.Repo, item.Number)
+			view, err := gh.PRView(ctx, ref)
+			if err != nil {
+				return nil, err
+			}
+			headSHA = view.HeadRefOid
+			queue[i].HeadSHA = headSHA
+		}
+		if headSHA == "" {
+			queue[i].Checks = "unknown"
+			continue
+		}
+		resp, err := gh.CheckRuns(ctx, item.Repo, headSHA)
 		if err != nil {
 			return nil, err
 		}
@@ -264,6 +277,9 @@ func applySizes(ctx context.Context, gh *github.Client, queue []QueueItem) ([]Qu
 			return nil, err
 		}
 		queue[i].Size = sumSize(view.Files)
+		if queue[i].HeadSHA == "" {
+			queue[i].HeadSHA = view.HeadRefOid
+		}
 	}
 	return queue, nil
 }
@@ -277,6 +293,10 @@ func sumSize(files []github.PRFile) int {
 }
 
 func printQueueText(cmd *cobra.Command, queue []QueueItem, limit int) error {
+	if len(queue) == 0 {
+		fmt.Fprintln(cmd.OutOrStdout(), "No PRs found.")
+		return nil
+	}
 	for _, item := range queue {
 		fmt.Fprintf(cmd.OutOrStdout(), "%s#%d %s\n", item.Repo, item.Number, item.Title)
 		fmt.Fprintf(cmd.OutOrStdout(), "  Author: %s  Age: %dd  Updated: %dd  Draft: %v  Checks: %s\n", item.Author, item.AgeDays, item.UpdatedDays, item.IsDraft, item.Checks)
@@ -292,6 +312,9 @@ func printQueueJSON(cmd *cobra.Command, queue []QueueItem, limit int) error {
 	payload := map[string]any{
 		"items": queue,
 		"limit": limit,
+	}
+	if len(queue) == 0 {
+		payload["message"] = "No PRs found."
 	}
 	data, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {

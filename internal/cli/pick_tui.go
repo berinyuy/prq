@@ -164,6 +164,9 @@ func (m pickModel) View() string {
 	header := m.headerView()
 	footer := m.footerView()
 	content := m.list.View()
+	if len(m.list.Items()) == 0 {
+		content = "No PRs match your search."
+	}
 	search := m.search.View()
 
 	if m.mode == pickModeAction {
