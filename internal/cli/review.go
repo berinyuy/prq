@@ -1,16 +1,12 @@
 package cli
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 
-	"github.com/brianndofor/prq/internal/diff"
 	"github.com/brianndofor/prq/internal/github"
-	"github.com/brianndofor/prq/internal/prompt"
 	"github.com/brianndofor/prq/internal/provider"
-	"github.com/brianndofor/prq/internal/redact"
 	"github.com/spf13/cobra"
 )
 
@@ -28,83 +24,43 @@ func NewReviewCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if runTests {
-				return fmt.Errorf("--run-tests is not implemented yet")
-			}
-			prRef := args[0]
-			repo, number, err := github.ParsePR(prRef)
-			if err != nil {
-				return err
-			}
-			fullRef := fmt.Sprintf("%s#%d", repo, number)
-			ctx := context.Background()
-			view, err := app.GH.PRView(ctx, fullRef)
-			if err != nil {
-				return err
-			}
-			diffText, err := app.GH.PRDiff(ctx, fullRef)
+			ctx := cmd.Context()
+			run, err := generateReviewPlan(ctx, app, args[0], maxIssues, runTests)
 			if err != nil {
 				return err
 			}
 
-			files, err := diff.ParseUnified(diffText)
+			if err := app.Store.UpsertPR(run.FullRef, run.View.Repository.NameWithOwner, run.View.Number, run.View.HeadRefOid); err != nil {
+				return err
+			}
+			if err := app.Store.MarkReviewed(run.FullRef, run.View.HeadRefOid); err != nil {
+				return err
+			}
+			payload := DraftReviewPayload{
+				Repo:    run.View.Repository.NameWithOwner,
+				Number:  run.View.Number,
+				BaseSHA: run.View.BaseRefOid,
+				HeadSHA: run.View.HeadRefOid,
+				Plan:    run.Plan,
+			}
+			payloadJSON, err := json.Marshal(payload)
 			if err != nil {
 				return err
 			}
-			chunks, err := diff.BuildChunks(files, app.RepoConfig.Diff.Ignore, app.RepoConfig.Diff.MaxFiles, app.RepoConfig.Diff.MaxChunkChars)
-			if err != nil {
+			if err := app.Store.UpsertDraftReview(run.FullRef, string(payloadJSON), renderDraftPreview(payload)); err != nil {
 				return err
 			}
-			fileList := renderFileList(view.Files)
-			diffChunks := strings.Join(chunks, "\n\n")
-
-			redactedTitle := redact.RedactOptional(view.Title, app.Config.Redaction.Enabled)
-			redactedBody := redact.RedactOptional(view.Body, app.Config.Redaction.Enabled)
-			redactedDiff := redact.RedactOptional(diffChunks, app.Config.Redaction.Enabled)
-			redactedFiles := redact.RedactOptional(fileList, app.Config.Redaction.Enabled)
-			redactedUserRules := redact.RedactRuleList(app.Config.UserRules, app.Config.Redaction.Enabled)
-			redactedRepoRules := redact.RedactRuleList(app.RepoConfig.RepoRules, app.Config.Redaction.Enabled)
-
-			snap := prompt.Snapshot{
-				Repo:          view.Repository.NameWithOwner,
-				PRNumber:      view.Number,
-				Title:         redactedTitle,
-				Description:   redactedBody,
-				BaseSHA:       view.BaseRefOid,
-				HeadSHA:       view.HeadRefOid,
-				CISummary:     "Not fetched",
-				TestResults:   "Not run",
-				FileListStats: redactedFiles,
-				DiffChunks:    redactedDiff,
-			}
-
-			template, err := prompt.LoadTemplate()
-			if err != nil {
-				return err
-			}
-			promptText := prompt.Render(template, redactedUserRules, redactedRepoRules, snap)
-			promptText = redact.RedactPromptBlock(promptText, app.Config.Redaction.Enabled)
-
-			schemaPath := prompt.DefaultSchemaPath()
-			plan, raw, err := app.Provider.RunReview(ctx, promptText, schemaPath)
-			if err != nil {
-				return err
-			}
-			if maxIssues > 0 && len(plan.Issues) > maxIssues {
-				plan.Issues = plan.Issues[:maxIssues]
-			}
-
-			if err := app.Store.UpsertPR(fullRef, view.Repository.NameWithOwner, view.Number, view.HeadRefOid); err != nil {
-				return err
+			if format != "json" {
+				fmt.Fprintf(cmd.OutOrStdout(), "Draft saved. Run `prq submit %s` to post to GitHub.\n\n", run.FullRef)
 			}
 
 			switch format {
 			case "json":
-				return printReviewJSON(cmd, plan, raw)
+				return printReviewJSON(cmd, run.Plan, run.Raw)
 			case "md":
-				return printReviewMarkdown(cmd, plan)
+				return printReviewMarkdown(cmd, run.Plan)
 			default:
-				return printReviewText(cmd, plan)
+				return printReviewText(cmd, run.Plan)
 			}
 		},
 	}

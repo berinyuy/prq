@@ -19,6 +19,7 @@ type App struct {
 	RepoConfig config.RepoConfig
 	GH         *github.Client
 	Provider   provider.Runner
+	Exec       ExecRunner
 	Store      *store.Store
 }
 
@@ -42,6 +43,7 @@ func initApp(configPath string) (*App, error) {
 
 	var ghRunner github.Runner = github.RealRunner{}
 	var prov provider.Runner = provider.NewClaudeRunner(merged.Provider)
+	execRunner := ExecRunner(RealExecRunner{})
 	if os.Getenv("PRQ_MOCK") == "1" {
 		fixtures := os.Getenv("PRQ_MOCK_DIR")
 		if fixtures == "" {
@@ -53,6 +55,7 @@ func initApp(configPath string) (*App, error) {
 			fixturePath = filepath.Join("testdata", "provider", "review.json")
 		}
 		prov = provider.NewFakeRunner(fixturePath)
+		execRunner = ExecRunner(FakeExecRunner{})
 	}
 	gh := github.NewClient(ghRunner)
 
@@ -71,6 +74,7 @@ func initApp(configPath string) (*App, error) {
 		RepoConfig: repoCfg,
 		GH:         gh,
 		Provider:   prov,
+		Exec:       execRunner,
 		Store:      st,
 	}, nil
 }

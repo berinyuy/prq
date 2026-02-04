@@ -52,8 +52,24 @@ prq review acme/app#42
 ```bash
 prq doctor
 prq queue --limit 50
+prq pick
 prq review OWNER/REPO#123
+prq draft OWNER/REPO#123
+prq submit OWNER/REPO#123
+prq followup OWNER/REPO#123
 ```
+
+`prq review` also saves a local draft you can submit later with `prq submit`.
+
+## Ideal Workflow
+
+See docs/workflow.md for a recommended end-to-end flow.
+
+## TUI Preview
+
+![PRQ TUI list view](docs/images/tui-list.svg)
+
+![PRQ TUI actions](docs/images/tui-actions.svg)
 
 ## Configuration
 
@@ -90,8 +106,11 @@ diff:
 
 ## Safety
 
-- No posting without explicit confirmation.
+- Nothing is posted to GitHub unless you run `prq submit` and confirm.
+- `prq submit --dry-run` lets you preview what would be posted without actually posting.
+- `prq submit` requires typing `y` to confirm (use `--yes` to skip for automation).
 - Redaction runs on all prompt content before calling the provider.
+- `--run-tests` runs commands from `prq.yaml` in a temp clone and includes the output in the review prompt.
 
 ## Troubleshooting
 
@@ -102,6 +121,7 @@ diff:
 ## Docs
 
 - docs/usage.md
+- docs/workflow.md
 - docs/config.md
 - docs/redaction.md
 - docs/provider-claude.md

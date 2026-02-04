@@ -28,7 +28,11 @@ func NewRootCmd() *cobra.Command {
 
 	root.AddCommand(NewDoctorCmd())
 	root.AddCommand(NewQueueCmd())
+	root.AddCommand(NewPickCmd())
 	root.AddCommand(NewReviewCmd())
+	root.AddCommand(NewDraftCmd())
+	root.AddCommand(NewSubmitCmd())
+	root.AddCommand(NewFollowupCmd())
 	root.AddCommand(NewConfigCmd())
 
 	return root

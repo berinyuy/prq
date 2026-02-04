@@ -1,0 +1,32 @@
+{
+  "data": {
+    "repository": {
+      "pullRequest": {
+        "reviewThreads": {
+          "nodes": [
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "internal/auth/auth.go",
+              "line": 42,
+              "comments": {
+                "nodes": [
+                  {
+                    "author": { "login": "octo" },
+                    "body": "Consider clarifying the auth flow in docs.",
+                    "createdAt": "2026-02-03T12:00:00Z"
+                  }
+                ],
+                "totalCount": 3
+              }
+            }
+          ],
+          "pageInfo": {
+            "hasNextPage": false,
+            "endCursor": null
+          }
+        }
+      }
+    }
+  }
+}

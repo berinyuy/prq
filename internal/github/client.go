@@ -139,7 +139,7 @@ func (c *Client) CheckRuns(ctx context.Context, repo string, sha string) (CheckR
 	return resp, nil
 }
 
-var prRefRe = regexp.MustCompile(`^([^/]+/[^#]+)#(\d+)$`)
+var prRefRe = regexp.MustCompile(`^([^/]+/[^#]+)#([0-9]+)$`)
 
 func ParsePR(ref string) (repo string, number int, err error) {
 	if strings.HasPrefix(ref, "http://") || strings.HasPrefix(ref, "https://") {

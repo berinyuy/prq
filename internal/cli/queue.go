@@ -27,6 +27,7 @@ type QueueItem struct {
 	UpdatedDays int      `json:"updated_days"`
 	Checks      string   `json:"checks"`
 	HeadSHA     string   `json:"head_sha"`
+	Size        int      `json:"size"`
 }
 
 func NewQueueCmd() *cobra.Command {
@@ -49,7 +50,10 @@ func NewQueueCmd() *cobra.Command {
 				return err
 			}
 			if tui {
-				return fmt.Errorf("tui picker not implemented yet")
+				if jsonOut {
+					return fmt.Errorf("--json is not supported with --tui")
+				}
+				return runPicker(cmd, app, pickOptions{limit: limit, repo: repo, owner: owner, label: label, checks: checks, draft: draft, sortBy: sortBy})
 			}
 
 			if limit == 0 {
@@ -69,6 +73,13 @@ func NewQueueCmd() *cobra.Command {
 
 			if checks != "any" || sortBy == "ci" {
 				queue, err = applyChecks(context.Background(), app.GH, queue, checks)
+				if err != nil {
+					return err
+				}
+			}
+
+			if sortBy == "size" {
+				queue, err = applySizes(context.Background(), app.GH, queue)
 				if err != nil {
 					return err
 				}
@@ -232,12 +243,37 @@ func sortQueue(queue []QueueItem, sortBy string) {
 			return queue[i].Checks < queue[j].Checks
 		})
 	case "size":
-		return
+		sort.Slice(queue, func(i, j int) bool {
+			return queue[i].Size > queue[j].Size
+		})
 	default:
 		sort.Slice(queue, func(i, j int) bool {
 			return queue[i].CreatedAt < queue[j].CreatedAt
 		})
 	}
+}
+
+func applySizes(ctx context.Context, gh *github.Client, queue []QueueItem) ([]QueueItem, error) {
+	for i, item := range queue {
+		if item.Repo == "" || item.Number == 0 {
+			continue
+		}
+		ref := fmt.Sprintf("%s#%d", item.Repo, item.Number)
+		view, err := gh.PRView(ctx, ref)
+		if err != nil {
+			return nil, err
+		}
+		queue[i].Size = sumSize(view.Files)
+	}
+	return queue, nil
+}
+
+func sumSize(files []github.PRFile) int {
+	size := 0
+	for _, file := range files {
+		size += file.Additions + file.Deletions
+	}
+	return size
 }
 
 func printQueueText(cmd *cobra.Command, queue []QueueItem, limit int) error {

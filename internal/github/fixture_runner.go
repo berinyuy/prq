@@ -29,6 +29,12 @@ func (f FixtureRunner) Run(ctx context.Context, args []string, stdin []byte) ([]
 		file = "pr_diff.txt"
 	} else if strings.Contains(key, "check-runs") {
 		file = "check_runs.json"
+	} else if strings.Contains(key, "api graphql") && strings.Contains(key, "reviewThreads") {
+		file = "review_threads.json"
+	} else if strings.Contains(key, "compare/") {
+		file = "compare.json"
+	} else if strings.Contains(key, "api -X POST") && strings.Contains(key, "/pulls/") && strings.Contains(key, "/reviews") {
+		file = "create_review.json"
 	} else if strings.Contains(key, "auth status") {
 		return []byte("logged in"), nil
 	} else {
