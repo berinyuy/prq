@@ -9,6 +9,12 @@
 
 ## Install
 
+Placeholders used below:
+
+- `<tap>`: your Homebrew tap in the form `OWNER/tap` (example: `acme/homebrew-tap`).
+- `<install_url>`: URL to your install script for released binaries.
+
+
 ### macOS (Homebrew)
 
 ```bash
@@ -24,8 +30,20 @@ scoop install prq
 ### Linux/macOS (curl)
 
 ```bash
-curl -fsSL https://example.com/prq/install.sh | sh
+curl -fsSL <install_url> | sh
 ```
+
+### From Source (Go)
+
+Requirements: Go 1.22+ and git.
+
+```bash
+git clone https://github.com/berinyuy/prq.git
+cd prq
+go install ./cmd/prq
+```
+
+The binary is installed to `$(go env GOPATH)/bin`. Ensure that directory is on your PATH.
 
 ## Mock Mode
 
