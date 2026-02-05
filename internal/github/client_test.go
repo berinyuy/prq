@@ -21,7 +21,22 @@ func TestSearchPRs(t *testing.T) {
 		t.Fatalf("failed to read fixture: %v", err)
 	}
 	client := NewClient(fakeRunner{Output: data})
-	items, err := client.SearchPRs(context.Background(), "", 10, "created", "asc")
+	items, err := client.SearchPRs(context.Background(), "", 10, "created", "asc", SearchModeReviewRequested)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(items))
+	}
+}
+
+func TestSearchPRsMine(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "testdata", "gh", "queue.json"))
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+	client := NewClient(fakeRunner{Output: data})
+	items, err := client.SearchPRs(context.Background(), "", 10, "created", "asc", SearchModeMine)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

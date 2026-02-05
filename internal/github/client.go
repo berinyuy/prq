@@ -58,8 +58,27 @@ type Label struct {
 	Name string `json:"name"`
 }
 
-func (c *Client) SearchPRs(ctx context.Context, query string, limit int, sort string, order string) ([]SearchPRItem, error) {
-	args := []string{"search", "prs", "--review-requested=@me", "--state", "open", "--limit", strconv.Itoa(limit), "--sort", sort, "--order", order, "--json", "number,title,url,repository,author,createdAt,updatedAt,isDraft,labels"}
+// SearchMode defines the type of PR search to perform
+type SearchMode string
+
+const (
+	// SearchModeReviewRequested searches for PRs where user is requested as reviewer
+	SearchModeReviewRequested SearchMode = "review"
+	// SearchModeMine searches for PRs authored by the user
+	SearchModeMine SearchMode = "mine"
+)
+
+func (c *Client) SearchPRs(ctx context.Context, query string, limit int, sort string, order string, mode SearchMode) ([]SearchPRItem, error) {
+	args := []string{"search", "prs", "--state", "open", "--limit", strconv.Itoa(limit), "--sort", sort, "--order", order, "--json", "number,title,url,repository,author,createdAt,updatedAt,isDraft,labels"}
+
+	// Add mode-specific filter
+	switch mode {
+	case SearchModeMine:
+		args = append(args, "--author=@me")
+	default:
+		args = append(args, "--review-requested=@me")
+	}
+
 	if strings.TrimSpace(query) != "" {
 		args = append(args, query)
 	}
@@ -84,7 +103,7 @@ type PRView struct {
 	BaseRefOid string   `json:"baseRefOid"`
 	HeadRefOid string   `json:"headRefOid"`
 	Files      []PRFile `json:"files"`
-	Repository RepoRef  `json:"repository"`
+	Repository RepoRef  `json:"headRepository"`
 }
 
 type PRFile struct {
@@ -93,8 +112,21 @@ type PRFile struct {
 	Deletions int    `json:"deletions"`
 }
 
+// prRefToArgs converts a PR reference (owner/repo#N or URL) to gh CLI args
+func prRefToArgs(ref string) []string {
+	// Try to parse as owner/repo#number
+	repo, number, err := ParsePR(ref)
+	if err == nil && repo != "" {
+		return []string{"-R", repo, strconv.Itoa(number)}
+	}
+	// Fall back to passing the ref directly (e.g., just a number)
+	return []string{ref}
+}
+
 func (c *Client) PRView(ctx context.Context, pr string) (PRView, error) {
-	args := []string{"pr", "view", pr, "--json", "number,title,body,url,author,labels,baseRefOid,headRefOid,files,repository"}
+	prArgs := prRefToArgs(pr)
+	args := append([]string{"pr", "view"}, prArgs...)
+	args = append(args, "--json", "number,title,body,url,author,labels,baseRefOid,headRefOid,files,headRepository")
 	output, err := c.Runner.Run(ctx, args, nil)
 	if err != nil {
 		return PRView{}, err
@@ -107,7 +139,8 @@ func (c *Client) PRView(ctx context.Context, pr string) (PRView, error) {
 }
 
 func (c *Client) PRDiff(ctx context.Context, pr string) (string, error) {
-	args := []string{"pr", "diff", pr}
+	prArgs := prRefToArgs(pr)
+	args := append([]string{"pr", "diff"}, prArgs...)
 	output, err := c.Runner.Run(ctx, args, nil)
 	if err != nil {
 		return "", err
