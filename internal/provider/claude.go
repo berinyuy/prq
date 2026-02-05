@@ -86,15 +86,13 @@ func (c *ClaudeRunner) RunReview(ctx context.Context, prompt string, schemaPath 
 		return ReviewPlan{}, "", err
 	}
 
-	// Escape single quotes in prompt for shell safety
-	escapedPrompt := escapeForShell(prompt)
-
-	// Build the full command to run through shell (handles JSON quoting)
-	shellCmd := fmt.Sprintf("%s -p --output-format json --json-schema '%s' '%s'",
-		c.command, schemaContent, escapedPrompt)
-	cmd := exec.CommandContext(ctx, "bash", "-c", shellCmd)
-	// Explicitly set stdin to nil to prevent any TTY inheritance
-	cmd.Stdin = nil
+	// Use exec.Command directly and pass prompt via stdin to avoid "argument list too long" error
+	// The Claude CLI accepts prompt from stdin when no prompt argument is provided
+	args := append([]string{}, c.args...)
+	args = append(args, "-p", "--output-format", "json", "--json-schema", schemaContent)
+	cmd := exec.CommandContext(ctx, c.command, args...)
+	// Pass the prompt via stdin
+	cmd.Stdin = strings.NewReader(prompt)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
