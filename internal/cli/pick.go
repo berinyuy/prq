@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/brianndofor/prq/internal/github"
 	"github.com/spf13/cobra"
 )
 
@@ -15,6 +16,7 @@ type pickOptions struct {
 	checks string
 	draft  string
 	sortBy string
+	mine   bool
 }
 
 func NewPickCmd() *cobra.Command {
@@ -39,6 +41,7 @@ func NewPickCmd() *cobra.Command {
 	cmd.Flags().StringVar(&opts.checks, "checks", "any", "Filter by checks: failure|pending|success|any")
 	cmd.Flags().StringVar(&opts.draft, "draft", "any", "Filter by draft: true|false|any")
 	cmd.Flags().StringVar(&opts.sortBy, "sort", "", "Sort: oldest|updated|ci|size")
+	cmd.Flags().BoolVar(&opts.mine, "mine", false, "Show my authored PRs instead of review requests")
 
 	return cmd
 }
@@ -56,7 +59,11 @@ func runPicker(cmd *cobra.Command, app *App, opts pickOptions) error {
 
 	query := buildQueueQuery(opts.repo, opts.owner, opts.label, opts.draft)
 	ghSort, order := mapSort(opts.sortBy)
-	items, err := app.GH.SearchPRs(cmd.Context(), query, opts.limit, ghSort, order)
+	mode := github.SearchModeReviewRequested
+	if opts.mine {
+		mode = github.SearchModeMine
+	}
+	items, err := app.GH.SearchPRs(cmd.Context(), query, opts.limit, ghSort, order, mode)
 	if err != nil {
 		return err
 	}

@@ -113,33 +113,103 @@ func printReviewMarkdown(cmd *cobra.Command, plan provider.ReviewPlan) error {
 	return nil
 }
 
+// ANSI color codes for terminal output
+const (
+	colorReset  = "\033[0m"
+	colorBold   = "\033[1m"
+	colorDim    = "\033[2m"
+	colorRed    = "\033[31m"
+	colorGreen  = "\033[32m"
+	colorYellow = "\033[33m"
+	colorBlue   = "\033[34m"
+	colorCyan   = "\033[36m"
+)
+
+func riskColor(risk string) string {
+	switch risk {
+	case "high":
+		return colorRed
+	case "medium":
+		return colorYellow
+	case "low":
+		return colorGreen
+	default:
+		return colorReset
+	}
+}
+
+func decisionColor(decision string) string {
+	switch decision {
+	case "approve":
+		return colorGreen
+	case "request_changes":
+		return colorRed
+	case "comment":
+		return colorYellow
+	default:
+		return colorReset
+	}
+}
+
+func severityColor(severity string) string {
+	switch severity {
+	case "blocker":
+		return colorRed
+	case "major":
+		return colorYellow
+	case "minor":
+		return colorCyan
+	default:
+		return colorReset
+	}
+}
+
 func writeReview(cmd *cobra.Command, plan provider.ReviewPlan, markdown bool) {
+	out := cmd.OutOrStdout()
+
 	header := func(title string) {
 		if markdown {
-			fmt.Fprintf(cmd.OutOrStdout(), "## %s\n", title)
-			return
+			fmt.Fprintf(out, "## %s\n", title)
+		} else {
+			fmt.Fprintf(out, "\n%s%s══ %s ══%s\n\n", colorBold, colorBlue, title, colorReset)
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "%s\n", title)
-	}
-	line := func(text string) {
-		fmt.Fprintln(cmd.OutOrStdout(), text)
 	}
 
+	line := func(text string) {
+		fmt.Fprintln(out, text)
+	}
+
+	// Summary
 	header("Summary")
 	line(plan.Summary)
-	header("Risk and Decision")
-	line(fmt.Sprintf("Risk: %s", plan.RiskLevel))
-	line(fmt.Sprintf("Decision: %s", plan.Decision))
 
+	// Risk and Decision - highlighted box
+	header("Risk & Decision")
+	if markdown {
+		line(fmt.Sprintf("- **Risk:** %s", plan.RiskLevel))
+		line(fmt.Sprintf("- **Decision:** %s", plan.Decision))
+	} else {
+		riskC := riskColor(plan.RiskLevel)
+		decC := decisionColor(plan.Decision)
+		line(fmt.Sprintf("  %s●%s Risk: %s%s%s%s", riskC, colorReset, colorBold, riskC, plan.RiskLevel, colorReset))
+		line(fmt.Sprintf("  %s●%s Decision: %s%s%s%s", decC, colorReset, colorBold, decC, plan.Decision, colorReset))
+	}
+
+	// Key Changes
 	header("Key Changes")
 	if len(plan.KeyChanges) == 0 {
-		line("No key changes listed.")
+		line(fmt.Sprintf("  %s(none)%s", colorDim, colorReset))
 	} else {
 		for _, change := range plan.KeyChanges {
-			line("- " + change)
+			if markdown {
+				line("- " + change)
+			} else {
+				line(fmt.Sprintf("  %s•%s %s", colorCyan, colorReset, change))
+			}
 		}
 	}
 
+	// Issues
 	header("Issues")
 	issuesByFile := map[string][]provider.Issue{}
 	order := []string{}
@@ -150,48 +220,89 @@ func writeReview(cmd *cobra.Command, plan provider.ReviewPlan, markdown bool) {
 		issuesByFile[issue.File] = append(issuesByFile[issue.File], issue)
 	}
 	if len(order) == 0 {
-		line("No issues found.")
+		line(fmt.Sprintf("  %s✓ No issues found%s", colorGreen, colorReset))
 	} else {
 		for _, file := range order {
-			line(file)
+			if markdown {
+				line(fmt.Sprintf("### `%s`", file))
+			} else {
+				line(fmt.Sprintf("  %s%s📄 %s%s", colorBold, colorCyan, file, colorReset))
+			}
 			for _, issue := range issuesByFile[file] {
-				line(fmt.Sprintf("  - [%s/%s] %s (%d-%d)", issue.Severity, issue.Category, issue.Message, issue.StartLine, issue.EndLine))
+				sevC := severityColor(issue.Severity)
+				if markdown {
+					line(fmt.Sprintf("- **[%s/%s]** %s (L%d-%d)", issue.Severity, issue.Category, issue.Message, issue.StartLine, issue.EndLine))
+				} else {
+					line(fmt.Sprintf("     %s[%s]%s %s%s%s", sevC, issue.Severity, colorReset, colorDim, issue.Category, colorReset))
+					line(fmt.Sprintf("     %s", issue.Message))
+					line(fmt.Sprintf("     %sLines %d-%d%s", colorDim, issue.StartLine, issue.EndLine, colorReset))
+				}
 				if issue.SuggestionPatch != "" {
-					line("    Suggested patch:")
 					if markdown {
-						line("```diff")
+						line("  ```diff")
 						line(issue.SuggestionPatch)
-						line("```")
+						line("  ```")
 					} else {
-						line(issue.SuggestionPatch)
+						line(fmt.Sprintf("     %s── Suggested fix ──%s", colorDim, colorReset))
+						for _, patchLine := range strings.Split(issue.SuggestionPatch, "\n") {
+							if strings.HasPrefix(patchLine, "+") {
+								line(fmt.Sprintf("     %s%s%s", colorGreen, patchLine, colorReset))
+							} else if strings.HasPrefix(patchLine, "-") {
+								line(fmt.Sprintf("     %s%s%s", colorRed, patchLine, colorReset))
+							} else {
+								line(fmt.Sprintf("     %s", patchLine))
+							}
+						}
 					}
+				}
+				if !markdown {
+					line("") // spacing between issues
 				}
 			}
 		}
 	}
 
+	// Questions
 	header("Questions")
 	if len(plan.Questions) == 0 {
-		line("No questions.")
+		line(fmt.Sprintf("  %s(none)%s", colorDim, colorReset))
 	} else {
-		for _, q := range plan.Questions {
-			line("- " + q)
+		for i, q := range plan.Questions {
+			if markdown {
+				line(fmt.Sprintf("%d. %s", i+1, q))
+			} else {
+				line(fmt.Sprintf("  %s%d.%s %s", colorYellow, i+1, colorReset, q))
+			}
 		}
 	}
 
+	// Praise
 	header("Praise")
 	if len(plan.Praise) == 0 {
-		line("No praise.")
+		line(fmt.Sprintf("  %s(none)%s", colorDim, colorReset))
 	} else {
 		for _, p := range plan.Praise {
-			line("- " + p)
+			if markdown {
+				line("- " + p)
+			} else {
+				line(fmt.Sprintf("  %s✓%s %s", colorGreen, colorReset, p))
+			}
 		}
 	}
 
+	// Draft Review Body
 	header("Draft Review Body")
 	if strings.TrimSpace(plan.DraftReviewBody) == "" {
-		line("No draft review body.")
+		line(fmt.Sprintf("  %s(none)%s", colorDim, colorReset))
 	} else {
-		line(plan.DraftReviewBody)
+		if markdown {
+			line(plan.DraftReviewBody)
+		} else {
+			// Indent the draft body for visual separation
+			for _, bodyLine := range strings.Split(plan.DraftReviewBody, "\n") {
+				line(fmt.Sprintf("  %s", bodyLine))
+			}
+		}
 	}
+	line("") // final newline
 }

@@ -40,6 +40,7 @@ func NewQueueCmd() *cobra.Command {
 	var sortBy string
 	var jsonOut bool
 	var tui bool
+	var mine bool
 
 	cmd := &cobra.Command{
 		Use:   "queue",
@@ -53,7 +54,7 @@ func NewQueueCmd() *cobra.Command {
 				if jsonOut {
 					return fmt.Errorf("--json is not supported with --tui")
 				}
-				return runPicker(cmd, app, pickOptions{limit: limit, repo: repo, owner: owner, label: label, checks: checks, draft: draft, sortBy: sortBy})
+				return runPicker(cmd, app, pickOptions{limit: limit, repo: repo, owner: owner, label: label, checks: checks, draft: draft, sortBy: sortBy, mine: mine})
 			}
 
 			if limit == 0 {
@@ -65,7 +66,11 @@ func NewQueueCmd() *cobra.Command {
 
 			query := buildQueueQuery(repo, owner, label, draft)
 			ghSort, order := mapSort(sortBy)
-			items, err := app.GH.SearchPRs(context.Background(), query, limit, ghSort, order)
+			mode := github.SearchModeReviewRequested
+			if mine {
+				mode = github.SearchModeMine
+			}
+			items, err := app.GH.SearchPRs(context.Background(), query, limit, ghSort, order, mode)
 			if err != nil {
 				return err
 			}
@@ -106,6 +111,7 @@ func NewQueueCmd() *cobra.Command {
 	cmd.Flags().StringVar(&sortBy, "sort", "", "Sort: oldest|updated|ci|size")
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output JSON")
 	cmd.Flags().BoolVar(&tui, "tui", false, "Open TUI picker")
+	cmd.Flags().BoolVar(&mine, "mine", false, "Show my authored PRs instead of review requests")
 	return cmd
 }
 

@@ -58,8 +58,27 @@ type Label struct {
 	Name string `json:"name"`
 }
 
-func (c *Client) SearchPRs(ctx context.Context, query string, limit int, sort string, order string) ([]SearchPRItem, error) {
-	args := []string{"search", "prs", "--review-requested=@me", "--state", "open", "--limit", strconv.Itoa(limit), "--sort", sort, "--order", order, "--json", "number,title,url,repository,author,createdAt,updatedAt,isDraft,labels"}
+// SearchMode defines the type of PR search to perform
+type SearchMode string
+
+const (
+	// SearchModeReviewRequested searches for PRs where user is requested as reviewer
+	SearchModeReviewRequested SearchMode = "review"
+	// SearchModeMine searches for PRs authored by the user
+	SearchModeMine SearchMode = "mine"
+)
+
+func (c *Client) SearchPRs(ctx context.Context, query string, limit int, sort string, order string, mode SearchMode) ([]SearchPRItem, error) {
+	args := []string{"search", "prs", "--state", "open", "--limit", strconv.Itoa(limit), "--sort", sort, "--order", order, "--json", "number,title,url,repository,author,createdAt,updatedAt,isDraft,labels"}
+
+	// Add mode-specific filter
+	switch mode {
+	case SearchModeMine:
+		args = append(args, "--author=@me")
+	default:
+		args = append(args, "--review-requested=@me")
+	}
+
 	if strings.TrimSpace(query) != "" {
 		args = append(args, query)
 	}

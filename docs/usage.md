@@ -22,13 +22,14 @@ prq doctor
 
 ### `prq queue`
 
-Lists open PRs where you are requested to review.
+Lists open PRs where you are requested to review, or your own PRs awaiting review.
 
 ```bash
 prq queue
 prq queue --limit 50 --owner my-org
 prq queue --repo acme/app --label bug --checks failure
 prq queue --draft false --sort updated
+prq queue --mine                        # Show your own PRs instead
 prq queue --tui
 ```
 
@@ -43,6 +44,7 @@ prq queue --tui
 | `--sort` | Sort: `oldest`, `updated`, `ci`, `size`. |
 | `--json` | Output JSON. |
 | `--tui` | Launch full-screen picker (same as `prq pick`). |
+| `--mine` | Show your authored PRs instead of review requests. |
 
 ### `prq pick`
 
@@ -50,6 +52,7 @@ Full-screen interactive picker with live search. Type to filter, use arrow keys 
 
 ```bash
 prq pick
+prq pick --mine     # Show your own PRs instead
 ```
 
 Screenshots:

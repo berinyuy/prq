@@ -70,6 +70,7 @@ prq review acme/app#42
 ```bash
 prq doctor
 prq queue --limit 50
+prq queue --mine              # Show your own PRs awaiting review
 prq pick
 prq review OWNER/REPO#123
 prq draft OWNER/REPO#123

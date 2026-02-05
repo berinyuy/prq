@@ -23,6 +23,7 @@ type issuePosition struct {
 func NewSubmitCmd() *cobra.Command {
 	var yes bool
 	var dryRun bool
+	var eventOverride string
 
 	cmd := &cobra.Command{
 		Use:   "submit <pr-url|OWNER/REPO#123>",
@@ -70,9 +71,19 @@ func NewSubmitCmd() *cobra.Command {
 				return err
 			}
 
-			event, eventErr := decisionToGitHubEvent(payload.Plan.Decision)
-			if eventErr != nil {
-				event = "COMMENT"
+			var event string
+			var eventErr error
+			if eventOverride != "" {
+				// Use the override if provided
+				event = strings.ToUpper(eventOverride)
+				if event != "APPROVE" && event != "COMMENT" && event != "REQUEST_CHANGES" {
+					return fmt.Errorf("invalid --event value %q; must be one of: approve, comment, request_changes", eventOverride)
+				}
+			} else {
+				event, eventErr = decisionToGitHubEvent(payload.Plan.Decision)
+				if eventErr != nil {
+					event = "COMMENT"
+				}
 			}
 			issuePositions := mapIssuesToPositions(posMap, payload.Plan.Issues)
 			comments, unmapped := buildReviewComments(issuePositions)
@@ -121,6 +132,7 @@ func NewSubmitCmd() *cobra.Command {
 
 	cmd.Flags().BoolVar(&yes, "yes", false, "Skip confirmation prompt")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview only; do not post")
+	cmd.Flags().StringVar(&eventOverride, "event", "", "Override review event (approve, comment, request_changes)")
 	return cmd
 }
 

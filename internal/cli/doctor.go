@@ -19,7 +19,7 @@ func NewDoctorCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 			defer cancel()
 			fmt.Fprintln(cmd.OutOrStdout(), "prq doctor")
 			if err := app.GH.CheckInstalled(); err != nil {
